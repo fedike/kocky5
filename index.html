@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AKO ĎALEJ?</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M4 12L12 4H36V28L28 36H4Z' fill='%23ffd52a' stroke='%230b50b5' stroke-width='3'/%3E%3Cpath d='M4 12H28L36 4M28 12V36' fill='none' stroke='%230b50b5' stroke-width='3'/%3E%3C/svg%3E">
+<style>
+:root{font-family:Arial,Helvetica,sans-serif;color:#17345b;background:white;font-synthesis:none}*{box-sizing:border-box}body{margin:0}main{max-width:1500px;margin:auto;padding:40px 28px 32px;text-align:center}h1{font-size:clamp(2.2rem,5vw,3.5rem);letter-spacing:.04em;margin:0 0 24px;color:#0b50b5}button{font:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}button:focus-visible,.track:focus-visible{outline:4px solid #a43bd3;outline-offset:5px}button:disabled{cursor:default}.palette{display:flex;justify-content:center;gap:clamp(4px,2vw,24px);margin:12px 0 20px;flex-wrap:wrap}.color{border:3px solid transparent;background:white;border-radius:14px;padding:9px 10px 7px;min-width:70px;color:#17345b;font-size:1rem;font-weight:bold}.color svg{display:block;width:clamp(54px,9vw,92px);height:auto;margin:0 auto 8px}.color:hover:enabled{background:#edf5ff}.color.wrong{animation:shake .38s ease-in-out}@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}@media(prefers-reduced-motion:reduce){.color.wrong{animation:none}}.color:disabled{opacity:.65}#instruction{font-size:clamp(1.25rem,3vw,1.7rem);font-weight:bold;margin:28px 0 8px;min-height:2em}.track{overflow-x:auto;padding:16px 6px 22px;min-height:168px;display:flex;align-items:center;scrollbar-color:#0b50b5 #edf5ff}.track svg{display:block;flex-shrink:0;margin:auto;overflow:visible}.empty{margin:auto;color:#60738c;font-size:1.1rem}#feedback{min-height:1.6em;font-size:1.1rem;margin:10px 0 18px;color:#a52a22}#setup p{font-size:1.25rem;margin:0 0 10px}.add{background:white;border:2px solid #c9d8ed;border-radius:14px;padding:8px 16px;display:inline-flex;align-items:center;gap:14px;color:#17345b;font-size:1.1rem;min-height:66px}.add svg{width:57px;height:57px}.add:hover:enabled{background:#edf5ff}.add:disabled{opacity:.4}.count{font-size:1rem;color:#526783;margin:10px 0 20px}.actions{display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap}.action{border:2px solid #c9d8ed;border-radius:12px;padding:16px 24px;min-height:58px;background:white;color:#17345b;font-weight:bold;font-size:1.1rem}.action:hover:enabled{background:#edf5ff}.action:disabled{opacity:.4}.primary{background:#0b50b5;color:white;border-color:#0b50b5;letter-spacing:.04em}.primary:hover:enabled{background:#083e8e}#reset{margin-top:20px}body[data-phase="done"] #instruction{color:#16753c}[hidden]{display:none!important}@media(max-width:600px){main{padding:25px 12px}.color{padding:6px 4px}.track{min-height:155px}h1{margin-bottom:18px}}
+</style>
+</head>
+<body data-phase="prepare">
+<main>
+<h1>AKO ĎALEJ?</h1>
+<p id="instruction" role="status" aria-live="polite">Vytvor farebný vzor.</p>
+<div class="track" tabindex="0" role="region" aria-label="Rad kociek. Dlhší rad môžeš posúvať do strán."><span class="empty">Vyber kocku z palety.</span></div>
+<div class="palette" aria-label="Vyber farbu"></div>
+<p id="feedback" role="status" aria-live="polite"></p>
+<section id="setup" aria-label="Príprava hry">
+<p>Koľko prázdnych kociek chceš vyskladať?</p>
+<button class="add" id="add" aria-label="Pridať jednu prázdnu kocku"></button>
+<div class="count" id="count">Prázdne kocky: 0 z 8</div>
+<div class="actions"><button class="action" id="undo">Späť</button><button class="action primary" id="start">PROGRAMUJ</button></div>
+</section>
+<button class="action" id="reset">Nový vzor</button>
+</main>
+<script>
+'use strict';
+const colors=[{id:'yellow',name:'Žltá',hex:'#ffd52a'},{id:'blue',name:'Modrá',hex:'#2488ed'},{id:'green',name:'Zelená',hex:'#28cc24'},{id:'black',name:'Čierna',hex:'#242424'},{id:'red',name:'Červená',hex:'#ed3338'}];
+const byId=Object.fromEntries(colors.map(c=>[c.id,c]));
+let phase='prepare',pattern=[],repeatUnit=[],blankCount=0,filledCount=0,history=[];
+const $=s=>document.querySelector(s);
+const timers=new Map();
+// All faces share exact coordinates; the grid is drawn once, with no pattern divider.
+function cubeRow(cells,label){
+ const w=80,d=25,top=24,h=80,end=cells.length*w;
+ let faces='',lines='';
+ cells.forEach((id,i)=>{const x=i*w,fill=id?byId[id].hex:'#ffffff';faces+=`<path fill="${fill}" d="M${x} ${top}h${w}v${h}h-${w}Z M${x} ${top}l${d} -${top}h${w}l-${d} ${top}Z"/>`;if(i>0)lines+=`M${x} ${top+h}V${top}l${d} -${top}`;});
+ const last=cells.at(-1),fill=last?byId[last].hex:'#ffffff';
+ faces+=`<path fill="${fill}" d="M${end} ${top}l${d} -${top}v${h}l-${d} ${top}Z"/>`;
+ lines+=`M0 ${top}L${d} 0H${end+d}V${h}L${end} ${top+h}H0Z M0 ${top}H${end}L${end+d} 0 M${end} ${top}V${top+h}`;
+ return `<svg xmlns="http://www.w3.org/2000/svg" width="${end+d}" height="${top+h}" viewBox="-2 -2 ${end+d+4} ${top+h+4}" role="img" aria-label="${label}">${faces}<path d="${lines}" fill="none" stroke="#0b50b5" stroke-width="2.5" stroke-linejoin="round"/></svg>`;
+}
+for(const c of colors){const b=document.createElement('button');b.className='color';b.dataset.color=c.id;b.setAttribute('aria-label',c.name);b.innerHTML=cubeRow([c.id],c.name)+`<span>${c.name}</span>`;b.addEventListener('click',()=>choose(c.id,b));$('.palette').append(b);}
+$('#add').innerHTML=cubeRow([null],'Prázdna kocka')+'<span>Pridať kocku</span>';
+function findRepeatUnit(seed){
+ for(let p=1;p<=seed.length;p++){
+  if(seed.every((color,i)=>color===seed[i%p]))return seed.slice(0,p);
+ }
+ return [];
+}
+function expectedAt(index){return repeatUnit[(pattern.length+index)%repeatUnit.length];}
+function feedback(text=''){$('#feedback').textContent=text;}
+function render(){
+ document.body.dataset.phase=phase;
+ const cells=[...pattern,...Array.from({length:blankCount},(_,i)=>i<filledCount?expectedAt(i):null)];
+ $('.track').innerHTML=cells.length?cubeRow(cells,cells.map((c,i)=>`${i+1}. ${c?byId[c].name:'prázdna'}`).join(', ')):'<span class="empty">Vyber kocku z palety.</span>';
+ $('#instruction').textContent=phase==='prepare'?'Vytvor farebný vzor.':phase==='play'?'Pokračuj vo vyfarbovaní podľa vzoru.':'Výborne!';
+ $('#setup').hidden=phase!=='prepare';
+ $('#add').disabled=phase!=='prepare'||!pattern.length||blankCount>=8;
+ $('#undo').disabled=!history.length;
+ $('#start').disabled=phase!=='prepare'||!pattern.length||!blankCount;
+ $('#count').textContent=`Prázdne kocky: ${blankCount} z 8`;
+ document.querySelectorAll('.color').forEach(b=>b.disabled=phase==='done');
+}
+function reveal(index){const track=$('.track'),svg=track.querySelector('svg');if(!svg)return;const right=svg.offsetLeft-track.offsetLeft+(index+1)*80+25;if(right>track.scrollLeft+track.clientWidth)track.scrollLeft=right-track.clientWidth+8;}
+function choose(id,button){
+ if(phase==='done')return;
+ if(phase==='prepare'){
+  if(pattern.length>=8){feedback('Vzor môže mať najviac 8 kociek.');return;}
+  pattern.push(id);history.push('color');feedback();render();reveal(pattern.length-1);return;
+ }
+ if(id!==expectedAt(filledCount)){
+  feedback('Skús inú farbu.');clearTimeout(timers.get(button));button.classList.remove('wrong');void button.offsetWidth;button.classList.add('wrong');timers.set(button,setTimeout(()=>{button.classList.remove('wrong');timers.delete(button);},400));return;
+ }
+ filledCount++;feedback();if(filledCount===blankCount)phase='done';render();reveal(pattern.length+filledCount-1);
+}
+$('#add').addEventListener('click',()=>{if(phase!=='prepare'||!pattern.length||blankCount>=8)return;blankCount++;history.push('blank');feedback();render();reveal(pattern.length+blankCount-1);});
+$('#undo').addEventListener('click',()=>{if(phase!=='prepare'||!history.length)return;const step=history.pop();if(step==='color')pattern.pop();else blankCount--;feedback();render();});
+$('#start').addEventListener('click',()=>{if(phase!=='prepare'||!pattern.length||!blankCount)return;pattern=Object.freeze([...pattern]);repeatUnit=Object.freeze(findRepeatUnit(pattern));phase='play';filledCount=0;feedback();render();$('.color').focus();});
+$('#reset').addEventListener('click',()=>{for(const [button,timer]of timers){clearTimeout(timer);button.classList.remove('wrong');}timers.clear();phase='prepare';pattern=[];repeatUnit=[];blankCount=0;filledCount=0;history=[];feedback();render();$('.track').scrollLeft=0;$('.color').focus();});
+render();
+</script>
+</body>
+</html>
